@@ -1,15 +1,15 @@
 // CONFIGURATION
 const CONFIG = {
-  // Drive Folder to save PDFs (Optional: Keep if you still want a backup in Drive)
-  DRIVE_FOLDER_ID: '1Bngh6rT7jmCxR3rlSby57ruLJSJDULlG', 
+  // MASTER Root Folder for all User Data
+  ROOT_FOLDER_ID: '1Bngh6rT7jmCxR3rlSby57ruLJSJDULlG', 
   
-  // Sheet to save data
-  SHEET_ID: '1QDGXT7-_0xnY3T-uviMxUBaMRyI2J9RSuLR9XVTuHXU',
-  SHEET_NAME: 'Invoices',
+  // USER DATABASE SHEET ID
+  // (The central registry for all users)
+  USER_DB_ID: '1ZIWROdf4T7M5f-zFHa_HJjGlCSikWpPkBlNb7IwLU4o',
   
   // FLASK API CONFIGURATION
-  // IMPORTANT: Replace this with your NGROK URL (e.g., https://abc-123.ngrok-free.app)
-  FLASK_API_URL: 'REPLACE_WITH_YOUR_NGROK_URL' 
+  FLASK_API_URL: 'https://4951637ce7e6.ngrok-free.app', 
+  API_ENDPOINT: '/api/parse'
 };
 
 function doGet(e) {
@@ -18,13 +18,106 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+// ==========================================
+// 🧠 PUBLIC API (Called from Client)
+// ==========================================
+
 /**
- * Handles the file upload from client, sends to Flask API, and saves to Sheet.
+ * Custom Login Function
+ * Verifies Email/Password against Master User DB
  */
-function processInvoiceUpload(base64Data, filename, mimeType) {
+function login(email, password) {
   try {
-    // 1. (Optional) Save backup to Drive
-    const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+    const isAuthenticated = MasterUserDB.verifyCredentials(email, password);
+    if (!isAuthenticated) {
+      return { success: false, error: "Invalid Email or Password" };
+    }
+    
+    // Ensure resources exist (Folder/Sheet)
+    const resources = UserResourceManager.get(email);
+    
+    // Check if we need to backfill links in the DB (for manually added users)
+    MasterUserDB.updateLinksIfNeeded(email, resources.folderId, resources.sheetId);
+    
+    return { success: true, email: email };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Gets the user's session data
+ * REQUIRES email since we are in anonymous mode
+ */
+function getUserData(userEmail) {
+  try {
+    if (!userEmail) throw new Error("No email provided");
+    
+    const resources = UserResourceManager.get(userEmail);
+    
+    // Read history from sheet
+    const ss = SpreadsheetApp.openById(resources.sheetId);
+    const sheet = ss.getSheets()[0];
+    const data = sheet.getDataRange().getValues();
+    
+    const history = [];
+    if (data.length > 1) {
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        history.push({
+           vendor_name: row[0],
+           invoice_number: row[1],
+           invoice_date: row[2] ? row[2].toString() : "",
+           due_date: row[3] ? row[3].toString() : "",
+           tax_amount: row[4],
+           total_amount: row[5],
+           currency: row[6],
+           line_items: [{
+              description: row[7],
+              quantity: row[8],
+              unit_price: row[9],
+              amount: row[10]
+           }],
+           file_url: row[11],
+           timestamp: row[12] ? row[12].toString() : ""
+        });
+      }
+    }
+
+    return {
+      success: true,
+      email: userEmail,
+      history: history.reverse()
+    };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * CLEARS all data for the user
+ */
+function clearUserWorkspace(userEmail) {
+  try {
+    if (!userEmail) throw new Error("No email provided");
+    UserResourceManager.clear(userEmail);
+    return { success: true };
+  } catch(e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Handles file upload -> API -> User Sheet
+ */
+function processInvoiceUpload(base64Data, filename, mimeType, userEmail) {
+  try {
+    if (!userEmail) throw new Error("No email provided");
+    
+    const resources = UserResourceManager.get(userEmail);
+    
+    // 1. Save to User's Folder
+    const folder = DriveApp.getFolderById(resources.folderId);
     const decoded = Utilities.base64Decode(base64Data);
     const blob = Utilities.newBlob(decoded, mimeType, filename);
     const file = folder.createFile(blob);
@@ -37,90 +130,228 @@ function processInvoiceUpload(base64Data, filename, mimeType) {
       throw new Error("API Error: " + apiResult.error);
     }
     
-    const structuredData = apiResult.data;
-    structuredData.file_url = fileUrl; // Add Drive URL to metadata
+    const invoiceList = Array.isArray(apiResult.data) ? apiResult.data : [apiResult.data];
+    let savedCount = 0;
 
-    // 3. Save to Sheet
-    const saveResult = saveToSheet(structuredData);
-    
-    if (!saveResult.success) {
-      throw new Error("Sheet Save Error: " + saveResult.error);
-    }
+    invoiceList.forEach(invoice => {
+        invoice.file_url = fileUrl;
+        
+        // 3. Save to User's Sheet
+        const saveResult = saveToUserSheet(resources.sheetId, invoice);
+        if (saveResult.success) savedCount++;
+    });
 
     return {
       success: true,
-      data: structuredData
+      data: invoiceList,
+      message: `Processed ${savedCount} invoices.`
     };
 
   } catch (error) {
-    Logger.log("Error in processInvoiceUpload: " + error.toString());
-    return {
-      success: false,
-      error: error.toString()
-    };
+    Logger.log("Error: " + error.toString());
+    return { success: false, error: error.toString() };
   }
 }
 
-/**
- * Sends the file blob to the Flask API for processing
- */
+// ==========================================
+// 🛠️ INTERNAL TOOLS
+// ==========================================
+
+const UserResourceManager = {
+  get: function(email) {
+    // 1. Normalize Email (Crucial for isolation)
+    email = email.trim().toLowerCase();
+    
+    // 2. CHECK REGISTRY FOR EXISTING LINKS FIRST (Best for Persistence)
+    const storedLinks = MasterUserDB.getLinks(email);
+    if (storedLinks) {
+       try {
+         // Verify they still exist
+         const folder = DriveApp.getFolderById(storedLinks.folderId);
+         const sheet = SpreadsheetApp.openById(storedLinks.sheetId);
+         return { folderId: storedLinks.folderId, sheetId: storedLinks.sheetId };
+       } catch(e) {
+         // If links are broken/deleted, proceed to create new
+         Logger.log("Stored links invalid, recreating workspace...");
+       }
+    }
+    
+    // 3. Resolve/Create directly from Drive (Fallback)
+    const root = DriveApp.getFolderById(CONFIG.ROOT_FOLDER_ID);
+    const folderName = `APIR_Workspace_${email}`;
+    const sheetName = `APIR_Data_${email}`;
+    
+    const folders = root.getFoldersByName(folderName);
+    let folder, sheet;
+    
+    if (folders.hasNext()) {
+      folder = folders.next();
+      const files = folder.getFilesByName(sheetName);
+      if (files.hasNext()) {
+        sheet = SpreadsheetApp.open(files.next());
+      } else {
+        sheet = this.createSheet(folder, sheetName);
+      }
+    } else {
+      folder = root.createFolder(folderName);
+      sheet = this.createSheet(folder, sheetName);
+    }
+    
+    const resources = { folderId: folder.getId(), sheetId: sheet.getId() };
+    return resources;
+  },
+  
+  createSheet: function(folder, name) {
+    const ss = SpreadsheetApp.create(name);
+    const file = DriveApp.getFileById(ss.getId());
+    file.moveTo(folder); 
+    
+    const sheet = ss.getSheets()[0];
+    sheet.setName("Invoices");
+    sheet.appendRow([
+        "Vendor", "Invoice #", "Date", "Due Date", "Tax", "Total", "Currency",
+        "Item Description", "Qty", "Unit Price", "Amount", "File URL", "Timestamp"
+    ]);
+    sheet.getRange(1, 1, 1, 13).setFontWeight("bold").setBackground("#e0e7ff");
+    return ss;
+  },
+  
+  clear: function(email) {
+    email = email.trim().toLowerCase();
+    
+    // 1. Get Folder ID from Registry (Most reliable method)
+    const storedLinks = MasterUserDB.getLinks(email);
+    if (storedLinks && storedLinks.folderId) {
+       try {
+         DriveApp.getFolderById(storedLinks.folderId).setTrashed(true);
+       } catch(e) {
+         Logger.log("Could not trash folder by ID: " + e.toString());
+       }
+    }
+
+    // 2. Fallback: Search by Name (For legacy/duplicate folders)
+    const root = DriveApp.getFolderById(CONFIG.ROOT_FOLDER_ID);
+    const folderName = `APIR_Workspace_${email}`;
+    const folders = root.getFoldersByName(folderName);
+    while (folders.hasNext()) {
+      folders.next().setTrashed(true);
+    }
+    
+    // 3. Clear Links from Master Registry
+    MasterUserDB.clearLinks(email);
+  }
+};
+
+const MasterUserDB = {
+  getLinks: function(email) {
+    const ss = SpreadsheetApp.openById(CONFIG.USER_DB_ID);
+    const sheet = ss.getSheets()[0];
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+        // Soft match email (case insensitive search against DB)
+        if (data[i][0].toString().toLowerCase() === email) {
+            const folderUrl = data[i][1];
+            const sheetUrl = data[i][2];
+            
+            if (folderUrl && sheetUrl) {
+                try {
+                   // Extract IDs from URLs
+                   const folderId = folderUrl.match(/[-\w]{25,}/)[0];
+                   const sheetId = sheetUrl.match(/[-\w]{25,}/)[0];
+                   return { folderId: folderId, sheetId: sheetId };
+                } catch(e) {
+                   return null; 
+                }
+            }
+        }
+    }
+    return null;
+  },
+
+  verifyCredentials: function(email, password) {
+    const ss = SpreadsheetApp.openById(CONFIG.USER_DB_ID);
+    const sheet = ss.getSheets()[0];
+    const data = sheet.getDataRange().getValues();
+    
+    // Normalize input
+    email = email.trim().toLowerCase();
+
+    // Skip Header (Row 0)
+    for (let i = 1; i < data.length; i++) {
+        // Compare lowercased DB email vs lowercased input
+        if (data[i][0].toString().toLowerCase() == email && data[i][4] == password) {
+            return true;
+        }
+    }
+    return false;
+  },
+
+  updateLinksIfNeeded: function(email, folderId, sheetId) {
+    const ss = SpreadsheetApp.openById(CONFIG.USER_DB_ID);
+    const sheet = ss.getSheets()[0];
+    const data = sheet.getDataRange().getValues();
+    
+    email = email.trim().toLowerCase();
+
+    for (let i = 1; i < data.length; i++) {
+        if (data[i][0].toString().toLowerCase() == email) {
+            // Check if links are empty (Col B and C -> Index 1 and 2)
+            if (!data[i][1] || !data[i][2]) {
+                const folderUrl = DriveApp.getFolderById(folderId).getUrl();
+                const sheetUrl = DriveApp.getFileById(sheetId).getUrl();
+                
+                // Update Row (1-based index = i+1)
+                sheet.getRange(i + 1, 2).setValue(folderUrl);
+                sheet.getRange(i + 1, 3).setValue(sheetUrl);
+                sheet.getRange(i + 1, 4).setValue(new Date()); 
+            }
+            break;
+        }
+    }
+  },
+
+  clearLinks: function(email) {
+    const ss = SpreadsheetApp.openById(CONFIG.USER_DB_ID);
+    const sheet = ss.getSheets()[0];
+    const data = sheet.getDataRange().getValues();
+    
+    email = email.trim().toLowerCase();
+
+    for (let i = 1; i < data.length; i++) {
+        if (data[i][0].toString().toLowerCase() == email) {
+             // Clear Col B (2), C (3), D (4Joined)
+             // Row is i+1
+             sheet.getRange(i+1, 2, 1, 3).clearContent();
+             break;
+        }
+    }
+  }
+};
+
 function callFlaskAPI(blob, filename) {
   const url = CONFIG.FLASK_API_URL + "/api/parse";
-  
-  // Construct Multipart Form Data
-  // UrlFetchApp automatically handles multipart if payload has blob
-  const payload = {
-    "file": blob
-  };
-  
-  const options = {
-    "method": "post",
-    "payload": payload,
-    "muteHttpExceptions": true
-  };
+  const payload = { "file": blob };
+  const options = { "method": "post", "payload": payload, "muteHttpExceptions": true };
   
   try {
     const response = UrlFetchApp.fetch(url, options);
-    const responseCode = response.getResponseCode();
-    const responseBody = response.getContentText();
-    
-    if (responseCode !== 200) {
-      Logger.log("Flask API Failed: " + responseBody);
-      return { success: false, error: "Flask API returned " + responseCode + ": " + responseBody };
+    if (response.getResponseCode() !== 200) {
+      return { success: false, error: response.getContentText() };
     }
-    
-    const json = JSON.parse(responseBody);
-    return json; // Expecting { success: true, data: {...} }
-    
+    return JSON.parse(response.getContentText());
   } catch (e) {
-    Logger.log("Fetch Error: " + e.toString());
-    return { success: false, error: "Connection refused. Is Flask/Ngrok running? " + e.toString() };
+    return { success: false, error: "Connection error: " + e.toString() };
   }
 }
 
-/**
- * Saves the extracted data to the Google Sheet
- */
-function saveToSheet(data) {
+function saveToUserSheet(sheetId, data) {
   try {
-    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    
-    // Create sheet if not exists
-    if (!sheet) {
-      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
-      // Add Headers
-      sheet.appendRow([
-        "Vendor", "Invoice #", "Date", "Due Date", "Tax", "Total", "Currency",
-        "Item Description", "Qty", "Unit Price", "Amount", "File URL", "Timestamp"
-      ]);
-      // Style headers
-      sheet.getRange(1, 1, 1, 13).setFontWeight("bold").setBackground("#e0e7ff");
-    }
-
+    const ss = SpreadsheetApp.openById(sheetId);
+    const sheet = ss.getSheets()[0];
     const timestamp = new Date();
-    // Handle potential null/undefined values safely
-    const headers = [
+    
+    const common = [
       data.vendor_name || "",
       data.invoice_number || "",
       data.invoice_date || "",
@@ -130,35 +361,15 @@ function saveToSheet(data) {
       data.currency || "USD"
     ];
 
-    // Flatten line items
     if (data.line_items && data.line_items.length > 0) {
       data.line_items.forEach(item => {
-        const row = [
-          ...headers,
-          item.description || "",
-          item.quantity || 0,
-          item.unit_price || 0,
-          item.amount || 0,
-          data.file_url,
-          timestamp
-        ];
-        sheet.appendRow(row);
+        sheet.appendRow([...common, item.description||"", item.quantity||0, item.unit_price||0, item.amount||0, data.file_url, timestamp]);
       });
     } else {
-      // Save header only if no items
-      const row = [
-        ...headers,
-        "", "", "", "",
-        data.file_url,
-        timestamp
-      ];
-      sheet.appendRow(row);
+      sheet.appendRow([...common, "", "", "", "", data.file_url, timestamp]);
     }
-
     return { success: true };
-
   } catch (e) {
-    Logger.log("Save Error: " + e.toString());
     return { success: false, error: e.toString() };
   }
 }

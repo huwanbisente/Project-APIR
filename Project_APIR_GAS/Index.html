@@ -154,6 +154,20 @@
     </div>
 
     <div class="flex items-center gap-4">
+      <!-- User Menu -->
+      <div class="hidden md:flex flex-col text-right mr-2" x-show="userEmail">
+        <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Logged in as</span>
+        <span class="text-sm font-semibold text-slate-700 dark:text-slate-200" x-text="userEmail"></span>
+      </div>
+
+      <button x-show="userEmail" @click="logout()" title="Sign Out"
+        class="glass-panel p-3 rounded-full hover:bg-slate-800 hover:text-white transition-all text-slate-600 dark:text-slate-400">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      </button>
+
       <!-- Theme Toggle -->
       <button @click="toggleTheme()"
         class="glass-panel p-3 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors text-slate-600 dark:text-yellow-400"
@@ -471,7 +485,8 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200/50 dark:divide-slate-700/50 bg-white/20 dark:bg-slate-800/20">
-            <template x-for="log in history" :key="log.id">
+            <!-- LIMIT TO 5 UPLOADS -->
+            <template x-for="log in history.slice(0, 5)" :key="log.id">
               <tr class="hover:bg-white/40 dark:hover:bg-slate-700/30 transition-colors">
                 <td class="px-6 py-3 font-mono text-xs" x-text="log.time"></td>
                 <td class="px-6 py-3 font-bold text-slate-900 dark:text-white" x-text="log.vendor"></td>
@@ -499,7 +514,26 @@
     <div class="flex justify-between items-end mb-3 px-1">
       <h3 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Extraction Results
         (CSV Format)</h3>
-      <button @click="csvResults = []" class="text-xs text-red-400 hover:text-red-500 font-bold">Clear Table</button>
+      <div class="flex gap-4">
+        <button @click="downloadCSV()"
+          class="glass-panel px-4 py-2 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+            </path>
+          </svg>
+          Download CSV
+        </button>
+        <button @click="clearData()"
+          class="glass-panel px-4 py-2 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+            </path>
+          </svg>
+          Reset Workspace
+        </button>
+      </div>
     </div>
     <div class="glass-panel rounded-xl overflow-hidden shadow-lg border-opacity-50">
       <div class="overflow-x-auto custom-scrollbar max-h-[500px]">
@@ -521,7 +555,8 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200/50 dark:divide-slate-700/50 bg-white/20 dark:bg-slate-800/20">
-            <template x-for="(row, idx) in csvResults" :key="idx">
+            <!-- LIMIT TO 10 ROWS -->
+            <template x-for="(row, idx) in csvResults.slice(0, 10)" :key="idx">
               <tr class="hover:bg-white/40 dark:hover:bg-slate-700/30 transition-colors">
                 <td class="px-4 py-2 font-bold" x-text="row.vendor"></td>
                 <td class="px-4 py-2" x-text="row.inv_num"></td>
@@ -544,11 +579,65 @@
     </div>
   </div>
 
+  <!-- LOGIN MODAL -->
+  <div x-show="!isLoggedIn" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm"
+    x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100">
+    <div
+      class="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 relative overflow-hidden">
+      <!-- Background Decorator -->
+      <div class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none">
+      </div>
+
+      <div class="text-center mb-8 relative z-10">
+        <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white mb-2">Welcome Back</h1>
+        <p class="text-slate-500 dark:text-slate-400">Sign in to your Invoice AI Workspace</p>
+      </div>
+
+      <form @submit.prevent="login()" class="space-y-6 relative z-10">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Email Address</label>
+          <input type="email" x-model="loginForm.email" required placeholder="user@example.com"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white transition-all">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Password</label>
+          <input type="password" x-model="loginForm.password" required placeholder="••••••••"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white transition-all">
+        </div>
+
+        <button type="submit" :disabled="isLoggingIn"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-500/30 transition-all transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+          <svg x-show="isLoggingIn" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+            fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+          </svg>
+          <span x-text="isLoggingIn ? 'Verifying...' : 'Sign In'"></span>
+        </button>
+
+        <p x-show="loginError" class="text-red-500 text-sm text-center font-medium animate-pulse" x-text="loginError">
+        </p>
+      </form>
+    </div>
+  </div>
+
   <script>
     function app() {
       return {
         isDark: false,
+        isLoggedIn: false, // DEFAULT FALSE
+        isLoggingIn: false,
+        loginError: null,
+        loginForm: {
+          email: '',
+          password: ''
+        },
         isLoading: false,
+        userEmail: '',
         stats: {
           processedCount: 0,
           totalValue: 0
@@ -556,17 +645,133 @@
         queue: [],
         processingFile: null,
         history: [],
-        csvResults: [], // Stores full data for table view
+        csvResults: [],
 
         init() {
+          // 1. Dark Mode
           if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             this.isDark = true;
+          }
+
+          // 2. CHECK LOCAL STORAGE FOR SESSION
+          const savedEmail = localStorage.getItem('APIR_UserEmail');
+          if (savedEmail) {
+            this.userEmail = savedEmail;
+            this.isLoggedIn = true;
+            this.loadUserData(); // Restore data
           }
         },
 
         toggleTheme() {
           this.isDark = !this.isDark;
         },
+
+        // LOGIN LOGIC
+        login() {
+          this.isLoggingIn = true;
+          this.loginError = null;
+
+          google.script.run
+            .withSuccessHandler((res) => {
+              this.isLoggingIn = false;
+              if (res.success) {
+                // Success!
+                this.isLoggedIn = true;
+                this.userEmail = res.email;
+                localStorage.setItem('APIR_UserEmail', res.email);
+                this.loadUserData(); // Load their workspace
+              } else {
+                this.loginError = res.error;
+              }
+            })
+            .login(this.loginForm.email.trim().toLowerCase(), this.loginForm.password);
+        },
+
+        logout() {
+          localStorage.removeItem('APIR_UserEmail');
+          this.isLoggedIn = false;
+          this.userEmail = '';
+          this.history = [];
+          this.csvResults = [];
+          this.stats = { processedCount: 0, totalValue: 0 };
+          this.loginForm.password = ''; // Clear password
+        },
+
+        loadUserData() {
+          google.script.run
+            .withSuccessHandler((res) => {
+              if (res.success) {
+                // Reset state to prevent double counting
+                this.history = [];
+                this.csvResults = [];
+                this.stats = { processedCount: 0, totalValue: 0 };
+
+                if (res.history) {
+                  // DEBUG TOAST
+                  const count = res.history.length;
+                  if (count > 0) {
+                    Swal.fire({
+                      toast: true,
+                      position: 'top-end',
+                      icon: 'success',
+                      title: `Restored ${count} invoices from history`,
+                      timer: 3000,
+                      showConfirmButton: false
+                    });
+                  } else {
+                    console.log("History array is empty");
+                  }
+
+                  res.history.forEach(item => {
+                    this.addToHistory(item);
+                    this.addToCSVTable(item);
+                  });
+                }
+              }
+            })
+            .getUserData(this.userEmail);
+        },
+
+        // Actions
+        clearData() {
+          // ... (Existing Clear Logic) ...
+          google.script.run
+            .withSuccessHandler((res) => {
+              this.isLoading = false;
+              if (res.success) {
+                this.history = [];
+                this.csvResults = [];
+                this.stats.processedCount = 0;
+                this.stats.totalValue = 0;
+                Swal.fire('Deleted!', 'Your workspace has been reset.', 'success');
+              } else {
+                this.handleError(res.error);
+              }
+            })
+            .clearUserWorkspace(this.userEmail); // PASS EMAIL
+          // ...
+        },
+
+        downloadCSV() {
+          // ... (Existing Logic Unchanged) ...
+          if (this.csvResults.length === 0) return;
+          const headers = Object.keys(this.csvResults[0]).join(",");
+          const rows = this.csvResults.map(row =>
+            Object.values(row).map(val => `"${val}"`).join(",")
+          );
+          const csvContent = [headers, ...rows].join("\n");
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `invoices_export_${new Date().toISOString().slice(0, 10)}.csv`);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        },
+
+        // ... (Existing Helpers) ...
 
         handleFileSelect(e) {
           const files = e.target.files;
@@ -575,7 +780,6 @@
               this.queue.push(file);
             });
             e.target.value = '';
-            // Auto-process disabled so user can manually trigger
           }
         },
 
@@ -596,15 +800,20 @@
           const file = this.queue[0];
           this.processingFile = file.name;
 
-          // Step 1: Upload & Extract
           const reader = new FileReader();
           reader.onload = (e) => {
             const rawBase64 = e.target.result.split(',')[1];
             google.script.run
               .withSuccessHandler((res) => {
                 if (res.success) {
-                  // Step 2: Auto-Save extracted data
-                  this.saveItem(res.data);
+                  const invoices = Array.isArray(res.data) ? res.data : [res.data];
+                  invoices.forEach(invoice => {
+                    this.addToHistory(invoice);
+                    this.addToCSVTable(invoice);
+                  });
+                  this.queue.shift();
+                  this.processQueue();
+
                 } else {
                   this.handleError(res.error);
                 }
@@ -612,28 +821,9 @@
               .withFailureHandler((err) => {
                 this.handleError(err.message);
               })
-              .processInvoiceUpload(rawBase64, file.name, file.type);
+              .processInvoiceUpload(rawBase64, file.name, file.type, this.userEmail); // PASS EMAIL
           };
           reader.readAsDataURL(file);
-        },
-
-        saveItem(data) {
-          google.script.run
-            .withSuccessHandler((res) => {
-              if (res.success) {
-                // Success!
-                this.addToHistory(data);
-                this.addToCSVTable(data);
-
-                // Move to next
-                this.queue.shift();
-                this.processQueue();
-              } else {
-                this.handleError(res.error);
-              }
-            })
-            .withFailureHandler((err) => this.handleError(err.message))
-            .saveToSheet(JSON.parse(JSON.stringify(data)));
         },
 
         handleError(msg) {
@@ -655,19 +845,17 @@
         addToHistory(data) {
           const total = data.total_amount || 0;
           this.history.unshift({
-            id: Date.now(),
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            id: Date.now() + Math.random(),
+            time: new Date(data.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             vendor: data.vendor_name || 'Unknown',
             total: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total),
             itemsCount: (data.line_items || []).length
           });
-
           this.stats.processedCount++;
           this.stats.totalValue += Number(total);
         },
 
         addToCSVTable(data) {
-          // Flatten logic for display
           const common = {
             vendor: data.vendor_name,
             inv_num: data.invoice_number,
@@ -677,7 +865,6 @@
             total: data.total_amount,
             curr: data.currency
           };
-
           if (data.line_items && data.line_items.length > 0) {
             data.line_items.forEach(item => {
               this.csvResults.push({ ...common, ...item });
@@ -689,7 +876,6 @@
       }
     }
   </script>
-
 </body>
 
 </html>
