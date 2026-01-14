@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Stack-Flask%20%2B%20GAS-yellow?style=flat-square" alt="Stack">
   <img src="https://img.shields.io/badge/AI-Llama%203.3-purple?style=flat-square" alt="AI">
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License">
 </p>
 
 ---
