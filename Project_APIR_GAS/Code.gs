@@ -8,7 +8,7 @@ const CONFIG = {
   USER_DB_ID: '1ZIWROdf4T7M5f-zFHa_HJjGlCSikWpPkBlNb7IwLU4o',
   
   // FLASK API CONFIGURATION
-  FLASK_API_URL: 'https://4951637ce7e6.ngrok-free.app', 
+  FLASK_API_URL: 'https://project-apir.onrender.com', 
   API_ENDPOINT: '/api/parse'
 };
 
