@@ -41,6 +41,7 @@ class OpenAIClient(LLMProvider):
             raise ImportError("OpenAI package not installed. Please run `pip install openai`")
             
     def analyze_text(self, text: str) -> list[Dict[str, Any]]:
+        print("DEBUG: Executing analyze_text (Final Replacement)")
         system_prompt = """
         You are an expert invoice data extractor. 
         Your task is to extract structured data from the provided invoice text.
@@ -74,74 +75,62 @@ class OpenAIClient(LLMProvider):
                 ]
             )
             content = response.choices[0].message.content
-            print(f"DEBUG: RAW LLM RESPONSE:\n{content[:500]}...") # Print first 500 chars
+            print(f"DEBUG: RAW LLM RESPONSE START:\n{content}\nDEBUG: RAW LLM RESPONSE END")
 
-            # Robust JSON Extraction using Regex
-            # The LLM might return multiple JSON blocks or a list.
+            # Validated Extraction Logic (from debug_llm.py)
             import re
-            
-            # Look for JSON objects {...}
-            # This regex matches balanced braces approximately (non-nested usually works for simple LLM output)
-            # or simply extract content between ```json ... ``` code blocks
+            import json
             
             json_objects = []
             
-            # Strategy 1: Extract from Code Blocks (Most reliable for this LLM output)
-            # Match either {...} OR [...] inside code blocks
+            # Strategy 1: Code Blocks
             code_block_pattern = r"```json\s*([\[\{][\s\S]*?[\]\}])\s*```"
             matches = re.findall(code_block_pattern, content)
             
             if matches:
-                print(f"DEBUG: Found {len(matches)} JSON code blocks.")
-                for match in matches:
-                    try:
-                        obj = json.loads(match)
+                 print(f"DEBUG: Found {len(matches)} JSON code blocks.")
+                 for match in matches:
+                     try:
+                         # Attempt to clean trailing commas which often break JSON
+                         # simple hack: remove ", }" or ", ]"
+                         clean_match = re.sub(r",\s*([\]\}])", r"\1", match)
+                         obj = json.loads(clean_match)
+                         if isinstance(obj, list):
+                             json_objects.extend(obj)
+                         else:
+                             json_objects.append(obj)
+                     except json.JSONDecodeError:
+                         pass
+
+            # Strategy 3: Aggressive Fallback (My Patch)
+            if not json_objects:
+                print("DEBUG: Standard extraction failed. Attempting aggressive fallback search...")
+                try:
+                    start = content.find('{')
+                    end = content.rfind('}')
+                    if start != -1 and end != -1:
+                        potential_json = content[start:end+1]
+                        # Clean trailing commas
+                        potential_json = re.sub(r",\s*([\]\}])", r"\1", potential_json)
+                        
+                        obj = json.loads(potential_json)
                         if isinstance(obj, list):
                             json_objects.extend(obj)
                         else:
                             json_objects.append(obj)
-                    except json.JSONDecodeError:
-                        pass
-            
-            # Strategy 2: If no code blocks, look for raw JSON objects/lists
-            if not json_objects:
-                # Try finding a top-level list [...]
-                list_pattern = r"(\[[\s\S]*\])"
-                list_match = re.search(list_pattern, content)
-                if list_match:
-                    try:
-                        obj = json.loads(list_match.group(1))
-                        if isinstance(obj, list):
-                            json_objects.extend(obj)
-                    except json.JSONDecodeError:
-                        pass
-                
-                # If still nothing, look for finding individual objects {...}
-                if not json_objects:
-                    raw_pattern = r"(\{[\s\S]*?\})"
-                    potential_matches = re.findall(raw_pattern, content)
-                    for match in potential_matches:
-                        try:
-                            obj = json.loads(match)
-                            # Basic validation to filter out non-invoice JSON
-                            if isinstance(obj, dict) and "total_amount" in obj:
-                                 json_objects.append(obj)
-                        except json.JSONDecodeError:
-                            pass
+                        print("DEBUG: Successfully extracted JSON via aggressive fallback.")
+                except Exception as e:
+                    print(f"DEBUG: Fallback search failed: {e}")
 
             if not json_objects:
-                print("Error: No valid JSON objects found in response.")
-                return {}
+                print(f"Error: No valid JSON objects found. RAW RESPONSE: {content[:500]}")
+                return []
 
-            # NORMALIZATION:
-            # We found multiple invoices. 
             print(f"DEBUG: Recovered {len(json_objects)} invoices.")
-            
             return json_objects
+
         except Exception as e:
             print(f"Error calling LLM: {e}")
-            if 'content' in locals():
-                 print(f"Failed Content: {content}")
             return []
 
 class LLMFactory:
