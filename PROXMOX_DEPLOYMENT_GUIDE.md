@@ -34,10 +34,11 @@ nano .env
 ```
 Add:
 ```
-OPENAI_API_KEY=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
+OPENAI_API_KEY=your-openrouter-api-key-here
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_MODEL=google/gemini-2.0-flash-001
 ```
+**Note**: Replace `your-openrouter-api-key-here` with your actual OpenRouter API key.
 
 ### 5. Create Systemd Services
 
