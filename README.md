@@ -27,7 +27,7 @@ The following diagram illustrates the complete system architecture and data flow
 
 **Key Components:**
 - **User Interface Layer**: Web interface (Flask) and Google Apps Script integration
-- **Public Gateway**: Ngrok tunnel for secure external access
+- **Public Gateway**: Cloudflare Tunnel for secure, persistent external access
 - **Server Infrastructure**: Proxmox LXC container running Flask + Gunicorn with systemd services
 - **Processing Pipeline**: 5-stage pipeline (Upload → OCR → LLM → Validation → Export)
 - **External Services**: OpenRouter API with Gemini 2.0 Flash for intelligent extraction
@@ -62,7 +62,7 @@ Review extracted data in a structured table and export to CSV.
 
 *   Python 3.10+
 *   Google Account (for Drive/Sheets integration)
-*   `ngrok` (for exposing local API to Google Cloud)
+*   Cloudflare Tunnel (for exposing local API)
 *   Ollama (Local LLM) or OpenAI API Key
 
 ## Installation
@@ -93,17 +93,18 @@ pip install -r requirements.txt
     python app.py
     ```
 
-3.  **Expose API**:
-    In a separate terminal, start the tunnel:
-    ```bash
-    python start_tunnel.py
-    ```
+3.  **Cloudflare Tunnel**:
+    The API is permanently exposed via Cloudflare Tunnel at:
+    `https://invoice-api.huwanbisente.online`
+
+    *(No manual tunnel startup required)*
 
 ## Usage
 
 ### Google Apps Script Frontend (Recommended)
 1.  Open the `Project_APIR_GAS` project in Google Script Editor.
-2.  Update `CONFIG.FLASK_API_URL` with your **ngrok URL**.
+2.  Update `CONFIG.FLASK_API_URL` with your **Cloudflare Tunnel URL**:
+    `https://invoice-api.huwanbisente.online`
 3.  Deploy as "Web App" -> execute as **Me** -> access **Anyone**.
 4.  Share the URL with users!
 

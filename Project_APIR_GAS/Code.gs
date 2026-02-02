@@ -8,7 +8,7 @@ const CONFIG = {
   USER_DB_ID: '1ZIWROdf4T7M5f-zFHa_HJjGlCSikWpPkBlNb7IwLU4o',
   
   // FLASK API CONFIGURATION
-  FLASK_API_URL: 'https://project-apir.onrender.com', 
+  FLASK_API_URL: 'https://invoice-api.huwanbisente.online', 
   API_ENDPOINT: '/api/parse'
 };
 
