@@ -123,7 +123,13 @@ class OpenAIClient(LLMProvider):
                     print(f"DEBUG: Fallback search failed: {e}")
 
             if not json_objects:
-                print(f"Error: No valid JSON objects found. RAW RESPONSE: {content[:500]}")
+                print("=" * 80)
+                print("ERROR: No valid JSON objects found!")
+                print("RAW RESPONSE (first 1000 chars):")
+                print(content[:1000])
+                print("\nRAW RESPONSE (last 500 chars):")
+                print(content[-500:])
+                print("=" * 80)
                 return []
 
             print(f"DEBUG: Recovered {len(json_objects)} invoices.")
