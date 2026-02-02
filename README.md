@@ -19,6 +19,22 @@
 
 ---
 
+## System Architecture
+
+The following diagram illustrates the complete system architecture and data flow from user input to processed output:
+
+![System Architecture Diagram](./system_architecture_detailed.png)
+
+**Key Components:**
+- **User Interface Layer**: Web interface (Flask) and Google Apps Script integration
+- **Public Gateway**: Ngrok tunnel for secure external access
+- **Server Infrastructure**: Proxmox LXC container running Flask + Gunicorn with systemd services
+- **Processing Pipeline**: 5-stage pipeline (Upload → OCR → LLM → Validation → Export)
+- **External Services**: OpenRouter API with Gemini 2.0 Flash for intelligent extraction
+- **Data Storage**: Temporary uploads, JSON results, and CSV export capabilities
+
+---
+
 ## Features
 
 *   **Dual-Mode Interface**: Operate via a robust Google Apps Script Web App or a local Flask UI.
