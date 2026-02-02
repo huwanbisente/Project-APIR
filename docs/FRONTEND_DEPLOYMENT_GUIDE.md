@@ -17,21 +17,24 @@ apt install nginx git -y
 ```
 
 ## Step 2: Download the Code
-Clone the repository to get the frontend files.
+We will create a specific folder for the app and install the files there.
 
 ```bash
-cd /var/www/html
-# Remove default nginx page
-rm -rf *
+# Create project folder
+mkdir -p /var/www/invoice-app
+cd /var/www/invoice-app
+
 # Clone repo (temporarily into a subfolder)
 git clone https://github.com/huwanbisente/Project-APIR.git temp_repo
-# Move frontend files to root
+
+# Move frontend files to our current app folder
 mv temp_repo/frontend/* .
+
 # Clean up
 rm -rf temp_repo
 ```
 
-Your `/var/www/html/` folder should now look like this:
+Your `/var/www/invoice-app/` folder should now look like this:
 ```text
 css/
 js/
@@ -42,12 +45,12 @@ Index.html
 Ensure Nginx can read the files.
 
 ```bash
-chown -R www-data:www-data /var/www/html
-chmod -R 755 /var/www/html
+chown -R www-data:www-data /var/www/invoice-app
+chmod -R 755 /var/www/invoice-app
 ```
 
 ## Step 4: Verify Nginx Configuration
-The default configuration usually works out of the box, but let's double-check.
+Since we are using a custom folder, we MUST tell Nginx where to look.
 Edit `/etc/nginx/sites-available/default`:
 
 ```nginx
@@ -55,8 +58,11 @@ server {
     listen 80 default_server;
     listen [::]:80 default_server;
 
-    root /var/www/html;
-    index Index.html;  # Make sure this matches our filename (capital I)
+    # POINT THIS TO YOUR NEW FOLDER
+    root /var/www/invoice-app;
+    
+    # Ensure Index.html is listed (Capital I)
+    index Index.html index.html index.htm;
 
     server_name _;
 
@@ -65,7 +71,7 @@ server {
     }
 }
 ```
-*Note: Our file is named `Index.html` (Capital I). Linux is case-sensitive, so ensure the `index` directive matches or rename the file to `index.html`.*
+*Note: Our file is named `Index.html` (Capital I). ensuring it is listed in the `index` line is critical.*
 
 Restart Nginx:
 ```bash
