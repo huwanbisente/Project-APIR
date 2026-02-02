@@ -1,0 +1,98 @@
+/* Base Backgrounds */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f1f5f9;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(215, 96%, 93%, 1) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(245, 96%, 93%, 1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsla(205, 96%, 93%, 1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(270, 96%, 96%, 1) 0px, transparent 50%);
+  min-height: 100vh;
+  transition: background-color 0.4s, color 0.4s;
+  background-size: 150% 150%;
+  background-attachment: fixed;
+}
+
+/* Light Mode - Snowy Tundra (Refined) */
+.bg-gradient-light {
+  /* Already handled by body default */
+  color: #1e293b;
+}
+
+/* Dark Mode - Lighter Aurora */
+body.dark {
+  background-color: #0f172a !important;
+  /* Slate-900 (Not Black) */
+  color: #e2e8f0;
+  background-image:
+    /* Green Aurora Top Left */
+    radial-gradient(at 0% 0%, hsla(165, 80%, 25%, 0.35) 0px, transparent 60%),
+    /* Purple Aurora Top Right */
+    radial-gradient(at 100% 0%, hsla(260, 80%, 30%, 0.3) 0px, transparent 60%),
+    /* Blue/Teal Glow Bottom */
+    radial-gradient(at 50% 100%, hsla(220, 90%, 25%, 0.3) 0px, transparent 60%) !important;
+}
+
+/* Glass Panel - Light */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* Glass Panel - Dark (Lighter, Frosted Look) */
+.dark .glass-panel {
+  background: rgba(255, 255, 255, 0.08);
+  /* White tint instead of black */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  /* Crisper border */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Inputs - Light */
+.glass-input {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(203, 213, 225, 1);
+  color: #1e293b;
+}
+
+/* Inputs - Dark */
+.dark .glass-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f8fafc;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 1);
+  border-color: #6366f1;
+  outline: none;
+}
+
+.dark .glass-input:focus {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: #818cf8;
+}
+
+/* Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 10px;
+}
+
+[x-cloak] {
+  display: none !important;
+}

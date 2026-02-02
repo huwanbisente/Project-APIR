@@ -108,6 +108,14 @@ pip install -r requirements.txt
 3.  Deploy as "Web App" -> execute as **Me** -> access **Anyone**.
 4.  Share the URL with users!
 
+### Self-Hosted Interface (New)
+The project now includes a built-in UI served directly by Flask, removing the need for Google Apps Script.
+1.  Access: `https://invoice-api.huwanbisente.online/`
+2.  **Default Credentials**:
+    *   **Email**: `admin@example.com`
+    *   **Password**: `admin123`
+3.  All data is stored purely locally in `local_data.db` (SQLite).
+
 ### CLI Mode
 Process a folder of invoices without a UI:
 ```bash

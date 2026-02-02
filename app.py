@@ -1,15 +1,16 @@
 import os
 import secrets
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from src.pipeline import Pipeline
+from src.database import DBManager
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../frontend')
 CORS(app)  # Enable CORS for all routes
 
 # Configuration
@@ -21,21 +22,63 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initialize Pipeline
-# NOTE: Ensure OPENAI_API_KEY is in .env
+# Initialize Services
 pipeline = Pipeline(use_mock=False, openai_api_key=os.getenv("OPENAI_API_KEY"))
+db = DBManager()
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ==========================================
+# 🌐 FRONTEND ROUTES
+# ==========================================
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return send_from_directory('../frontend', 'Index.html')
+
+@app.route('/js/<path:path>')
+def send_js(path):
+    return send_from_directory('../frontend/js', path)
+
+@app.route('/css/<path:path>')
+def send_css(path):
+    return send_from_directory('../frontend/css', path)
+
+# ==========================================
+# 🧠 API ROUTES
+# ==========================================
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy", "service": "Project APIR Pipeline"}), 200
+    return jsonify({"status": "healthy", "service": "Project APIR Local"}), 200
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    
+    if db.verify_user(email, password):
+        return jsonify({"success": True, "email": email})
+    return jsonify({"success": False, "error": "Invalid credentials. Default: admin@example.com / admin123"}), 401
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    email = request.args.get('email')
+    if not email:
+        return jsonify({"success": False, "error": "Email required"}), 400
+    
+    history = db.get_user_history(email)
+    return jsonify({"success": True, "history": history})
+
+@app.route('/api/clear', methods=['POST'])
+def clear_workspace():
+    data = request.json
+    email = data.get('email')
+    db.clear_workspace(email)
+    return jsonify({"success": True})
 
 @app.route('/api/parse', methods=['POST'])
 def parse_invoice():
@@ -44,6 +87,7 @@ def parse_invoice():
         return jsonify({"error": "No file part"}), 400
     
     file = request.files['file']
+    email = request.form.get('email', 'anonymous') # Frontend should send this
     
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
@@ -62,23 +106,27 @@ def parse_invoice():
             print("Starting pipeline processing...")
             result = pipeline.process_file(file_path)
             
-            # 4. Clean up
+            # 4. Save to Database (Placeholder Logic)
+            # If result is a list (multiple invoices in one PDF), save each
+            if isinstance(result, list):
+                for item in result:
+                    if "error" not in item:
+                        db.save_invoice(email, item, file_path)
+            elif isinstance(result, dict) and "error" not in result:
+                db.save_invoice(email, result, file_path)
+
+            # 5. Clean up (Optional: We might want to keep files in a real app)
+            # For now, deleting to save space
             os.remove(file_path)
-            print(f"Cleaned up {file_path}")
             
-            # 5. Return result
-            # 5. Return result
-            # Check if global error (list with one error dict)
+            # 6. Return result
             if isinstance(result, list) and len(result) == 1 and "error" in result[0]:
-                 # But maybe it's just one failed invoice in a batch?
-                 # Let's just return success=False if the ONLY thing returned is a fatal error
                  if "error" in result[0] and len(result[0]) == 1:
                      return jsonify({"success": False, "error": result[0]["error"]}), 500
 
             return jsonify({"success": True, "data": result}), 200
             
         except Exception as e:
-            # Attempt cleanup if failed
             if os.path.exists(file_path):
                 os.remove(file_path)
             return jsonify({"success": False, "error": str(e)}), 500
