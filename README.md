@@ -23,7 +23,7 @@
 
 The following diagram illustrates the complete system architecture and data flow from user input to processed output:
 
-![System Architecture Diagram](./system_architecture_detailed.png)
+![System Architecture Diagram](assets/images/system_architecture_detailed.png)
 
 **Key Components:**
 - **User Interface Layer**: Web interface (Flask) and Google Apps Script integration
@@ -32,6 +32,20 @@ The following diagram illustrates the complete system architecture and data flow
 - **Processing Pipeline**: 5-stage pipeline (Upload → OCR → LLM → Validation → Export)
 - **External Services**: OpenRouter API with Gemini 2.0 Flash for intelligent extraction
 - **Data Storage**: Temporary uploads, JSON results, and CSV export capabilities
+
+---
+
+## User Interface
+
+The application features a modern, responsive dark-themed interface for easy invoice management.
+
+### Upload & Processing Dashboard
+Manage file uploads and view real-time processing status.
+![Upload Dashboard](assets/images/WebUI_1.PNG)
+
+### Extraction Results & Export
+Review extracted data in a structured table and export to CSV.
+![Extraction Results](assets/images/WebUI_2.PNG)
 
 ---
 
