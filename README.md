@@ -9,7 +9,6 @@
   <img src="https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Stack-Flask%20%2B%20GAS-yellow?style=flat-square" alt="Stack">
   <img src="https://img.shields.io/badge/AI-Llama%203.3-purple?style=flat-square" alt="AI">
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License">
 </p>
 
 ---
@@ -17,6 +16,22 @@
 *   If you find this tool useful for automating your finance workflows, please consider giving it a star!
 
 **Invoice AI Hub** is a powerful ETL pipeline that ingests unstructured invoice data (PDFs/Images), extracts structured financial information using Local LLMs (Ollama/Llama 3.3) or OpenAI, and automatically synchronizes the results to your Google Sheets. It features a robust multi-tenant architecture with a Google Apps Script frontend.
+
+---
+
+## System Architecture
+
+The following diagram illustrates the complete system architecture and data flow from user input to processed output:
+
+![System Architecture Diagram](./system_architecture_detailed.png)
+
+**Key Components:**
+- **User Interface Layer**: Web interface (Flask) and Google Apps Script integration
+- **Public Gateway**: Ngrok tunnel for secure external access
+- **Server Infrastructure**: Proxmox LXC container running Flask + Gunicorn with systemd services
+- **Processing Pipeline**: 5-stage pipeline (Upload → OCR → LLM → Validation → Export)
+- **External Services**: OpenRouter API with Gemini 2.0 Flash for intelligent extraction
+- **Data Storage**: Temporary uploads, JSON results, and CSV export capabilities
 
 ---
 
