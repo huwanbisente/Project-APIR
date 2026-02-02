@@ -19,6 +19,10 @@ function app() {
         history: [],
         csvResults: [],
 
+        // CONFIGURATION
+        // Point this to your Python API Container's Public URL
+        API_BASE_URL: 'https://invoice-api.huwanbisente.online',
+
         init() {
             // 1. Dark Mode
             if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -44,7 +48,7 @@ function app() {
             this.loginError = null;
 
             try {
-                const res = await fetch('/api/login', {
+                const res = await fetch(`${this.API_BASE_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.loginForm)
@@ -81,7 +85,7 @@ function app() {
             if (!this.userEmail) return;
 
             try {
-                const res = await fetch(`/api/history?email=${encodeURIComponent(this.userEmail)}`);
+                const res = await fetch(`${this.API_BASE_URL}/api/history?email=${encodeURIComponent(this.userEmail)}`);
                 const data = await res.json();
 
                 if (data.success && data.history) {
@@ -115,7 +119,7 @@ function app() {
         // Actions
         async clearData() {
             try {
-                const res = await fetch('/api/clear', {
+                const res = await fetch(`${this.API_BASE_URL}/api/clear`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: this.userEmail })
@@ -184,7 +188,7 @@ function app() {
             formData.append('email', this.userEmail); // Include Email for DB saving
 
             // IMPORTANT: Adjust this URL if your API is on a different port/host
-            const API_URL = '/api/parse';
+            const API_URL = `${this.API_BASE_URL}/api/parse`;
 
             fetch(API_URL, {
                 method: 'POST',
