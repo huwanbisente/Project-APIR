@@ -1,43 +1,44 @@
 <h1 align="center">Invoice AI Hub</h1>
 
 <p align="center">
-  A Hybrid Invoice Processing System harnessing Local LLMs for intelligence and Google Workspace for seamless integration.
+  A Self-Hosted Invoice Processing System harnessing Gemini 2.0 Flash for intelligence and a modern Vue.js frontend.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Author-Jan%20Vincent%20Chioco-red?style=flat-square" alt="Author">
-  <img src="https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/Stack-Flask%20%2B%20GAS-yellow?style=flat-square" alt="Stack">
-  <img src="https://img.shields.io/badge/AI-Llama%203.3-purple?style=flat-square" alt="AI">
+  <img src="https://img.shields.io/badge/Frontend-Vue.js%20%2B%20Alpine-green?style=flat-square" alt="Frontend">
+  <img src="https://img.shields.io/badge/Backend-Flask%20%2B%20Python-blue?style=flat-square&logo=python&logoColor=white" alt="Backend">
+  <img src="https://img.shields.io/badge/AI-Gemini%202.0%20Flash-purple?style=flat-square" alt="AI">
 </p>
 
 ---
 
 *   If you find this tool useful for automating your finance workflows, please consider giving it a star!
 
-**Invoice AI Hub** is a powerful ETL pipeline that ingests unstructured invoice data (PDFs/Images), extracts structured financial information using Local LLMs (Ollama/Llama 3.3) or OpenAI, and automatically synchronizes the results to your Google Sheets. It features a robust multi-tenant architecture with a Google Apps Script frontend.
+**Invoice AI Hub** is a powerful, self-hosted ETL pipeline designed to run on a home lab (Proxmox). It ingests unstructured invoice data (PDFs/Images), extracts structured financial information using the latest Generative AI models (Gemini 2.0 Flash), and provides a polished Dashboard for review and export.
+
+The project uses a **Microservices Architecture**, separating the UI (Frontend LXC) from the Intelligence (Backend API LXC), secured behind Cloudflare Tunnels.
 
 ---
 
 ## System Architecture
 
-The following diagram illustrates the complete system architecture and data flow from user input to processed output:
+The following diagram illustrates the complete system architecture and data flow:
 
 ![System Architecture Diagram](assets/images/system_architecture_detailed.png)
 
 **Key Components:**
-- **User Interface Layer**: Web interface (Flask) and Google Apps Script integration
-- **Public Gateway**: Cloudflare Tunnel for secure, persistent external access
-- **Server Infrastructure**: Proxmox LXC container running Flask + Gunicorn with systemd services
-- **Processing Pipeline**: 5-stage pipeline (Upload → OCR → LLM → Validation → Export)
-- **External Services**: OpenRouter API with Gemini 2.0 Flash for intelligent extraction
-- **Data Storage**: Temporary uploads, JSON results, and CSV export capabilities
+- **Frontend Service**: Nginx container serving a modern Vue.js/Alpine.js Single Page Application (SPA).
+- **Backend Service**: Dedicated LXC container running a Python Flask API.
+- **Intelligence Engine**: Utilizes an OpenAI-compatible client to interface with LLMs (Gemini/GPT-4o).
+- **Public Gateway**: Cloudflare Zero Trust Tunnels for secure external access without port forwarding.
+- **Data Persistence**: Local SQLite database for user management and invoice history.
 
 ---
 
 ## User Interface
 
-The application features a modern, responsive dark-themed interface for easy invoice management.
+The application features a modern, responsive dark-themed interface.
 
 ### Upload & Processing Dashboard
 Manage file uploads and view real-time processing status.
@@ -45,23 +46,22 @@ Manage file uploads and view real-time processing status.
 
 ### Extraction Results & Export
 Review extracted data in a structured table and export to CSV.
-![Extraction Results](assets/images/WebUI_2.PNG)
+![Extract Results](assets/images/WebUI_2.PNG)
 
 ---
 
 ## Features
 
-*   **Dual-Mode Interface**: Operate via a robust Google Apps Script Web App or a local Flask UI.
-*   **Intelligent Extraction**: Uses advanced LLMs to parse complex tables and handwritten text with high accuracy.
-*   **Multi-User Architecture**: Secure, isolated workspaces for multiple users with Master Registry authentication.
-*   **Automated Sync**: Instantly saves parsed data to user-specific Google Sheets and Drive folders.
-*   **Batch Processing**: Drag-and-drop queue for processing multiple invoices sequentially.
-*   **Anonymous Access**: fully supports anonymous (non-Google) users via custom login system.
+*   **Self-Hosted & Private**: Runs entirely on your own infrastructure (Proxmox/Docker).
+*   **Modern UI**: Beautiful, responsive dashboard built with TailwindCSS and Alpine.js.
+*   **Intelligent Extraction**: Uses Gemini 2.0 Flash to parse complex tables and handwriting.
+*   **Multi-User System**: Built-in Sign Up/Login system with secure session management.
+*   **Data Sovereignty**: All processed data is stored in your local SQLite database, not the cloud.
+*   **Microservices Ready**: Decoupled frontend/backend allows purely API-driven usage if needed.
 
 ## Requirements
 
 *   Python 3.10+
-*   Google Account (for Drive/Sheets integration)
 *   Cloudflare Tunnel (for exposing local API)
 *   Ollama (Local LLM) or OpenAI API Key
 
