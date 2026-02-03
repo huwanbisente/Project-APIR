@@ -68,7 +68,13 @@ class DBManager:
         conn.close()
         
         if row:
-            return check_password_hash(row['password_hash'], password)
+            # Check hash
+            try:
+                return check_password_hash(row['password_hash'], password)
+            except:
+                # Fallback for old plain text passwords (optional, helps migration)
+                if row['password_hash'] == password:
+                    return True
         return False
 
     def create_user(self, email, password):
@@ -81,7 +87,7 @@ class DBManager:
             if c.fetchone():
                 return False, "User already exists"
 
-            # Create
+            # Create with Hash
             p_hash = generate_password_hash(password)
             c.execute('INSERT INTO users VALUES (?, ?, ?)', 
                      (email, p_hash, datetime.now().isoformat()))
