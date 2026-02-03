@@ -99,25 +99,12 @@ pip install -r requirements.txt
 
     *(No manual tunnel startup required)*
 
-## Usage
+## Project Structure
 
-### Google Apps Script Frontend (Recommended)
-1.  Open the `Project_APIR_GAS` project in Google Script Editor.
-2.  Update `CONFIG.FLASK_API_URL` with your **Cloudflare Tunnel URL**:
-    `https://invoice-api.huwanbisente.online`
-3.  Deploy as "Web App" -> execute as **Me** -> access **Anyone**.
-4.  Share the URL with users!
-
-### Self-Hosted Interface (New)
-The project now includes a built-in UI served directly by Flask, removing the need for Google Apps Script.
-1.  Access: `https://invoice-api.huwanbisente.online/`
-2.  **Default Credentials**:
-    *   **Email**: `admin@example.com`
-    *   **Password**: `admin123`
-3.  All data is stored purely locally in `local_data.db` (SQLite).
-
-### CLI Mode
-Process a folder of invoices without a UI:
-```bash
-python -m src.main --input "path/to/invoices"
-```
+```text
+├── app.py                  # Main Flask API Application
+├── add_user.py             # CLI Tool for managing users
+├── src/
+│   ├── database.py         # SQLite Database Manager
+│   ├── pipeline.py         # Main AI Extraction Logic
+│   ├── llm_client.py       

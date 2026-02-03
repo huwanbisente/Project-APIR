@@ -60,13 +60,37 @@ class DBManager:
         return conn
 
     def verify_user(self, email, password):
+        """Check if user exists and password is correct."""
         conn = self.get_connection()
-        user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+        c = conn.cursor()
+        c.execute('SELECT password_hash FROM users WHERE email = ?', (email,))
+        row = c.fetchone()
         conn.close()
         
-        if user and check_password_hash(user['password_hash'], password):
-            return True
+        if row:
+            return check_password_hash(row['password_hash'], password)
         return False
+
+    def create_user(self, email, password):
+        """Register a new user."""
+        conn = self.get_connection()
+        c = conn.cursor()
+        try:
+            # Check exist
+            c.execute('SELECT email FROM users WHERE email = ?', (email,))
+            if c.fetchone():
+                return False, "User already exists"
+
+            # Create
+            p_hash = generate_password_hash(password)
+            c.execute('INSERT INTO users VALUES (?, ?, ?)', 
+                     (email, p_hash, datetime.now().isoformat()))
+            conn.commit()
+            return True, "User created successfully"
+        except Exception as e:
+            return False, str(e)
+        finally:
+            conn.close()
 
     def get_user_history(self, email):
         conn = self.get_connection()

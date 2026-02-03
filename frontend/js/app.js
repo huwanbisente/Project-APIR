@@ -1,9 +1,14 @@
 function app() {
     return {
+        // State
         isDark: false,
         isLoggedIn: false, // DEFAULT FALSE
         isLoggingIn: false,
         loginError: null,
+        isSignUp: false, // NEW: Toggle state
+        userEmail: '',
+
+        // Forms
         loginForm: {
             email: '',
             password: ''
@@ -42,13 +47,15 @@ function app() {
             this.isDark = !this.isDark;
         },
 
-        // LOGIN LOGIC
+        // LOGIN / SIGNUP LOGIC
         async login() {
             this.isLoggingIn = true;
             this.loginError = null;
 
+            const endpoint = this.isSignUp ? '/api/signup' : '/api/login';
+
             try {
-                const res = await fetch(`${this.API_BASE_URL}/api/login`, {
+                const res = await fetch(`${this.API_BASE_URL}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.loginForm)
@@ -56,12 +63,21 @@ function app() {
                 const data = await res.json();
 
                 if (data.success) {
-                    this.isLoggingIn = false;
-                    this.isLoggedIn = true;
-                    this.userEmail = data.email;
-                    this.loginForm.password = '';
-                    localStorage.setItem('APIR_UserEmail', this.userEmail);
-                    this.loadUserData();
+                    if (this.isSignUp) {
+                        // If signup success, switch back to login mode and show success msg
+                        this.isSignUp = false;
+                        this.loginError = null; // Clear error
+                        Swal.fire('Account Created', 'Please sign in with your new account.', 'success');
+                        this.isLoggingIn = false;
+                    } else {
+                        // Standard Login Success
+                        this.isLoggingIn = false;
+                        this.isLoggedIn = true;
+                        this.userEmail = data.email;
+                        this.loginForm.password = '';
+                        localStorage.setItem('APIR_UserEmail', this.userEmail);
+                        this.loadUserData();
+                    }
                 } else {
                     this.isLoggingIn = false;
                     this.loginError = data.error;
@@ -70,6 +86,11 @@ function app() {
                 this.isLoggingIn = false;
                 this.loginError = "Connection Error: " + err.toString();
             }
+        },
+
+        toggleSignUp() {
+            this.isSignUp = !this.isSignUp;
+            this.loginError = null;
         },
 
         logout() {

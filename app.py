@@ -64,6 +64,20 @@ def login():
         return jsonify({"success": True, "email": email})
     return jsonify({"success": False, "error": "Invalid credentials. Default: admin@example.com / admin123"}), 401
 
+@app.route('/api/signup', methods=['POST'])
+def signup():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"success": False, "error": "Email and Password required"}), 400
+
+    success, message = db.create_user(email, password)
+    if success:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": message}), 400
+
 @app.route('/api/history', methods=['GET'])
 def get_history():
     email = request.args.get('email')
